@@ -15,8 +15,10 @@ use shrev::*;
 
 add_wasm_support!();
 
+pub const SCREEN_WIDTH: u32 = 200;
+pub const SCREEN_HEIGHT: u32 = 65;
 pub const WIDTH: u32 = 200;
-pub const HEIGHT: u32 = 65;
+pub const HEIGHT: u32 = 60;
 
 /// Component wrapper for types not implementing Component
 #[derive(new)]
@@ -40,6 +42,14 @@ pub struct Sprite {
     pub glyph: u16,
     pub fg: RGBA,
     pub bg: RGBA,
+}
+#[derive(Default, Clone, Debug, new)]
+pub struct Progress {
+    pub current_mine: u32,
+    pub block_progress: u32,
+    pub money_per_block: u32,
+    pub mined: u64,
+    pub money: u64,
 }
 #[derive(Component, new)]
 pub struct MultiSprite {
@@ -307,32 +317,68 @@ pub struct MineRes {
 
 system!(MineSystem, |positions: ReadStorage<'a, Point>, players: ReadStorage<'a, Player>, maps: WriteStorage<'a, CollisionMap>, tags: ReadStorage<'a, MiningMapTag>, 
         channel: Read<'a, EventChannel<VirtualKeyCode>>,
-        res: WriteExpect<'a, MineRes>| {
-    // doesn't handle two entities that want to go to the same tile.
+        res: WriteExpect<'a, MineRes>,
+        progress: Write<'a, Progress>| {
     for key in channel.read(&mut res.reader) {
-        for (player_pos, _) in (&positions, &players).join() {
-            for (map_pos, map, _) in (&positions, &mut maps, &tags).join() {
-                match key {
-                    VirtualKeyCode::P => {
+        match key {
+            VirtualKeyCode::P => {
+                for (player_pos, _) in (&positions, &players).join() {
+                    for (map_pos, map, _) in (&positions, &mut maps, &tags).join() {
                         if position_inside_rect(player_pos.x, player_pos.y, 0, 0, map.size().0, map.size().1) {
                             let (rel_x, rel_y) = ((player_pos.x - map_pos.x) as u32, (player_pos.y + 1 - map_pos.y) as u32);
-                            if rel_y < map.size().1 {
-                                map.unset(rel_x, rel_y);
+                            if rel_y < map.size().1 && map.is_set(rel_x, rel_y) {
+                                progress.block_progress += 1;
+                                if progress.block_progress > 5 {
+                                    // TODO remove money_per_block from here
+                                    progress.money_per_block = 5;
+                                    progress.block_progress = 0;
+                                    progress.mined += 1;
+                                    progress.money += progress.money_per_block as u64;
+                                    map.unset(rel_x, rel_y);
+                                }
                             }
                             //if map.is_inside(pos) {
                             //    let (x, y) = map.relative_point(pos);
                             //    if map.is_set(
                             //}
                         }
-                    },
-                    _ => {},
+                    }
                 }
-            }
+            },
+            _ => {},
         }
     }
 });
 
-fn render<'a>(ctx: &mut BTerm, camera: &Camera, positions: ReadStorage<'a, Point>, multi_sprites: ReadStorage<'a, MultiSprite>, sprites: ReadStorage<'a, Sprite>, map: &CollisionResource) {
+#[derive(new)]
+pub struct ResetRes {
+    pub reader: ReaderId<VirtualKeyCode>,
+}
+
+system!(ResetSystem, |positions: WriteStorage<'a, Point>, players: ReadStorage<'a, Player>,
+        maps: WriteStorage<'a, CollisionMap>, tags: ReadStorage<'a, MiningMapTag>, 
+        channel: Read<'a, EventChannel<VirtualKeyCode>>,
+        res: WriteExpect<'a, ResetRes>,
+        progress: Write<'a, Progress>| {
+    for key in channel.read(&mut res.reader) {
+        match key {
+            VirtualKeyCode::R => {
+                for (mut map, _) in (&mut maps, &tags).join() {
+                    init_collision_map(&mut map);
+                }
+                for (mut p, _) in (&mut positions, &players).join() {
+                    p.x = WIDTH as i32 / 2;
+                    p.y = 10;
+                }
+                progress.block_progress = 0;
+            },
+            _ => {},
+        }
+    }
+});
+
+fn render<'a>(ctx: &mut BTerm, camera: &Camera, positions: ReadStorage<'a, Point>, multi_sprites: ReadStorage<'a, MultiSprite>, sprites: ReadStorage<'a, Sprite>, map: &CollisionResource,
+              progress: &Progress) {
     ctx.cls();
     for i in 0..WIDTH {
         for j in 0..HEIGHT {
@@ -350,6 +396,16 @@ fn render<'a>(ctx: &mut BTerm, camera: &Camera, positions: ReadStorage<'a, Point
     for (pos, sprite) in (&positions, &sprites).join() {
         ctx.set(pos.x - camera.position.x, pos.y - camera.position.y, sprite.fg, sprite.bg, sprite.glyph);
     }
+
+    if progress.block_progress == 0 {
+        ctx.draw_bar_horizontal(0, SCREEN_HEIGHT - 5, SCREEN_WIDTH, 1, 1, WHITE, BLACK);
+    } else {
+        ctx.draw_bar_horizontal(0, SCREEN_HEIGHT - 5, SCREEN_WIDTH, progress.block_progress, 5, WHITE, BLACK);
+    }
+    ctx.print(0, SCREEN_HEIGHT - 4, format!("Blocks Mined: {}, Mine Level: {}", progress.mined, progress.current_mine));
+    ctx.print(0, SCREEN_HEIGHT - 3, format!("Money: {}$", progress.money));
+    ctx.print(0, SCREEN_HEIGHT - 2, format!("Mine Material: Cobblestone, Tool: Standard Pickaxe, Money Per Block: {}$, Respawns In: 0s", progress.money_per_block));
+    ctx.print(0, SCREEN_HEIGHT - 1, format!("Remaining Before Next Unlock: 0$"));
 }
 
 struct State {
@@ -365,15 +421,26 @@ impl GameState for State {
         }
         //self.world.insert(ctx.key.clone());
         self.dispatcher.dispatch(&mut self.world);
-        render(ctx, &self.world.read_resource(), self.world.read_storage(), self.world.read_storage(), self.world.read_storage(), &self.world.read_resource());
+        render(ctx, &self.world.read_resource(), self.world.read_storage(), self.world.read_storage(), self.world.read_storage(), &self.world.read_resource(), &self.world.read_resource());
         self.world.maintain();
         std::thread::sleep(std::time::Duration::from_millis(8));
     }
 }
 
+fn init_collision_map(coll: &mut CollisionMap) {
+    for i in 0..WIDTH {
+        for j in 0..20 {
+            coll.unset(i, j);
+        }
+        for j in 20..HEIGHT {
+            coll.set(i, j);
+        }
+    }
+}
+
 fn main() -> BError {
     let context = BTermBuilder::new()
-        .with_simple_console(WIDTH, HEIGHT, "terminal8x8.png")
+        .with_simple_console(SCREEN_WIDTH, SCREEN_HEIGHT, "terminal8x8.png")
         .with_font("terminal8x8.png", 8, 8)
         .with_title("World Digger")
         .with_vsync(false)
@@ -385,6 +452,7 @@ fn main() -> BError {
         //.with(UpdateCollisionResourceSystem, "update_collision_res", &["combine_collision"])
         .with(CreepSpawnerSystem, "creep_spawner", &[])
         .with(PlayerMovementSystem, "player_movement", &[])
+        .with(ResetSystem, "reset", &[])
         .with(MineSystem, "mine", &[])
         //.with(AiPathingSystem, "ai_pathing", &["update_collision_res"])
         //.with(AiMovementSystem, "ai_movement", &["ai_pathing"])
@@ -398,9 +466,11 @@ fn main() -> BError {
     let mut channel = EventChannel::<VirtualKeyCode>::new();
     let reader = channel.register_reader();
     let reader2 = channel.register_reader();
+    let reader3 = channel.register_reader();
     world.insert(channel);
     world.insert(PlayerMovementRes::new(reader));
     world.insert(MineRes::new(reader2));
+    world.insert(ResetRes::new(reader3));
 
     world.insert(CollisionResource::default());
     world.insert(Camera::new(Point::new(0,0), Point::new(160, 60)));
@@ -446,14 +516,7 @@ fn main() -> BError {
     //    .build();
 
     let mut coll = CollisionMap::new(WIDTH, HEIGHT);
-    for i in 0..WIDTH {
-        for j in 0..20 {
-            coll.unset(i, j);
-        }
-        for j in 20..HEIGHT {
-            coll.set(i, j);
-        }
-    }
+    init_collision_map(&mut coll);
     world.create_entity()
         .with(Point::new(0, 0))
         .with(coll)
