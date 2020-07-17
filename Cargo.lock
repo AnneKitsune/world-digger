@@ -756,6 +756,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "minigene"
+version = "0.1.0"
+dependencies = [
+ "bracket-lib",
+ "derive-new",
+ "game_features",
+ "hibitset",
+ "pushdown-automaton-macro",
+ "shrev",
+ "specs",
+ "specs-derive",
+ "specs_declaration",
+]
+
+[[package]]
 name = "miniz_oxide"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1053,6 +1068,12 @@ checksum = "beae6331a816b1f65d04c45b078fd8e6c93e8071771f41b8163255bbd8d7c8fa"
 dependencies = [
  "unicode-xid 0.2.1",
 ]
+
+[[package]]
+name = "pushdown-automaton-macro"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9e5c3ae625bc8d58d2ae19980066885482b53e6d18c03c419abca4c4cda102f1"
 
 [[package]]
 name = "quote"
@@ -1783,14 +1804,7 @@ dependencies = [
 name = "world_digger_ascii"
 version = "0.1.0"
 dependencies = [
- "bracket-lib",
- "derive-new",
- "game_features",
- "hibitset",
- "shrev",
- "specs",
- "specs-derive",
- "specs_declaration",
+ "minigene",
 ]
 
 [[package]]

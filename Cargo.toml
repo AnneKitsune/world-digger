@@ -8,12 +8,12 @@ edition = "2018"
 
 [dependencies]
 #bracket-lib = { version = "0.8.1", default-features = false, features = ["specs", "threaded", "crossterm"] }
-bracket-lib = { path = "../bracket-lib", default-features = false, features = ["specs", "threaded", "crossterm"] }
-specs_declaration = { path = "../specs_declaration" }
-game_features = { path = "../game_features" }
-specs = "0.16.1"
-specs-derive = "0.4.1"
-shrev = "1.1.1"
-hibitset = "0.6.3"
-derive-new = "0.5"
-
+#bracket-lib = { path = "../bracket-lib", default-features = false, features = ["specs", "threaded", "crossterm"] }
+#specs_declaration = { path = "../specs_declaration" }
+#game_features = { path = "../game_features" }
+#specs = "0.16.1"
+#specs-derive = "0.4.1"
+#shrev = "1.1.1"
+#hibitset = "0.6.3"
+#derive-new = "0.5"
+minigene = { path = "../minigene" }
