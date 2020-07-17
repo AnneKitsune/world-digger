@@ -43,6 +43,47 @@ pub struct Sprite {
     pub fg: RGBA,
     pub bg: RGBA,
 }
+
+#[derive(Clone, Debug, new)]
+pub struct Mine {
+    pub name: String,
+    pub block_name: String,
+    pub unlock_cost: u64,
+    pub money_per_block: u64,
+    pub tick_per_block: u32,
+}
+
+//fn gen_mines() -> Vec<Mine> {
+//    vec![
+//        Mine::new("A", "Cobblestone", 0, 5, 5),
+//        Mine::new("B", "Cobblestone", 0, 5, 5),
+//        Mine::new("C", "Cobblestone", 0, 5, 5),
+//        Mine::new("D", "Cobblestone", 0, 5, 5),
+//        Mine::new("E", "Cobblestone", 0, 5, 5),
+//        Mine::new("F", "Cobblestone", 0, 5, 5),
+//        Mine::new("G", "Cobblestone", 0, 5, 5),
+//        Mine::new("H", "Cobblestone", 0, 5, 5),
+//        Mine::new("I", "Cobblestone", 0, 5, 5),
+//        Mine::new("J", "Cobblestone", 0, 5, 5),
+//        Mine::new("K", "Cobblestone", 0, 5, 5),
+//        Mine::new("L", "Cobblestone", 0, 5, 5),
+//        Mine::new("M", "Cobblestone", 0, 5, 5),
+//        Mine::new("N", "Cobblestone", 0, 5, 5),
+//        Mine::new("O", "Cobblestone", 0, 5, 5),
+//        Mine::new("P", "Cobblestone", 0, 5, 5),
+//        Mine::new("Q", "Cobblestone", 0, 5, 5),
+//        Mine::new("R", "Cobblestone", 0, 5, 5),
+//        Mine::new("S", "Cobblestone", 0, 5, 5),
+//        Mine::new("T", "Cobblestone", 0, 5, 5),
+//        Mine::new("U", "Cobblestone", 0, 5, 5),
+//        Mine::new("V", "Cobblestone", 0, 5, 5),
+//        Mine::new("W", "Cobblestone", 0, 5, 5),
+//        Mine::new("X", "Cobblestone", 0, 5, 5),
+//        Mine::new("Y", "Cobblestone", 0, 5, 5),
+//        Mine::new("Z", "Cobblestone", 0, 5, 5),
+//    ]
+//}
+
 #[derive(Default, Clone, Debug, new)]
 pub struct Progress {
     pub current_mine: u32,
@@ -55,6 +96,7 @@ pub struct Progress {
 pub struct MultiSprite {
     pub tile: MultiTileSprite,
 }
+
 #[derive(Component, new)]
 pub struct AiPath {
     pub path: NavigationPath,
@@ -64,6 +106,7 @@ pub struct AiPath {
 pub struct AiDestination {
     pub target: Point,
 }
+
 pub struct Spawner<F: Fn(&mut World)> {
     f: F,
 }
