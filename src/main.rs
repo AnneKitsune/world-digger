@@ -75,8 +75,23 @@ pub struct PlayerMovementRes {
     pub reader: ReaderId<VirtualKeyCode>,
 }
 
-system!(PlayerMovementSystem, |positions: WriteStorage<'a, Point>, players: ReadStorage<'a, Player>, global_map: ReadExpect<'a, CollisionResource>, channel: Read<'a, EventChannel<VirtualKeyCode>>,
-        res: WriteExpect<'a, PlayerMovementRes>| {
+system!(PlayerMovementSystem, |positions: WriteStorage<
+    'a,
+    Point,
+>,
+                               players: ReadStorage<'a, Player>,
+                               global_map: ReadExpect<
+    'a,
+    CollisionResource,
+>,
+                               channel: Read<
+    'a,
+    EventChannel<VirtualKeyCode>,
+>,
+                               res: WriteExpect<
+    'a,
+    PlayerMovementRes,
+>| {
     // doesn't handle two entities that want to go to the same tile.
     for key in channel.read(&mut res.reader) {
         for (mut pos, _) in (&mut positions, &players).join() {
@@ -85,24 +100,42 @@ system!(PlayerMovementSystem, |positions: WriteStorage<'a, Point>, players: Read
                 VirtualKeyCode::J => try_move(&mut pos, &global_map, Direction::South),
                 VirtualKeyCode::L => try_move(&mut pos, &global_map, Direction::East),
                 VirtualKeyCode::K => try_move(&mut pos, &global_map, Direction::North),
-                _ => {},
+                _ => {}
             }
         }
     }
 });
 
-
 pub fn try_move(p: &mut Point, map: &CollisionResource, dir: Direction) {
     let (rel_x, rel_y) = (p.x - map.position.x, p.y - map.position.y);
     let mut n = p.clone();
     match dir {
-        Direction::West => if rel_x > 0 {n.x -= 1},
-        Direction::South => if rel_y < map.map.size().1 as i32 - 1 {n.y += 1},
-        Direction::East => if rel_x < map.map.size().0 as i32 - 1 {n.x += 1},
-        Direction::North => if rel_y > 0 {n.y -= 1},
-        _ => unreachable!()
+        Direction::West => {
+            if rel_x > 0 {
+                n.x -= 1
+            }
+        }
+        Direction::South => {
+            if rel_y < map.map.size().1 as i32 - 1 {
+                n.y += 1
+            }
+        }
+        Direction::East => {
+            if rel_x < map.map.size().0 as i32 - 1 {
+                n.x += 1
+            }
+        }
+        Direction::North => {
+            if rel_y > 0 {
+                n.y -= 1
+            }
+        }
+        _ => unreachable!(),
     }
-    if !map.map.is_set((n.x - map.position.x) as u32, (n.y - map.position.y) as u32) {
+    if !map
+        .map
+        .is_set((n.x - map.position.x) as u32, (n.y - map.position.y) as u32)
+    {
         p.x = n.x;
         p.y = n.y;
     }
@@ -113,70 +146,98 @@ pub struct MineRes {
     pub reader: ReaderId<VirtualKeyCode>,
 }
 
-system!(MineSystem, |positions: ReadStorage<'a, Point>, players: ReadStorage<'a, Player>, maps: WriteStorage<'a, CollisionMap>, tags: ReadStorage<'a, MiningMapTag>, 
-        channel: Read<'a, EventChannel<VirtualKeyCode>>,
-        res: WriteExpect<'a, MineRes>,
-        progress: Write<'a, Progress>| {
-    for key in channel.read(&mut res.reader) {
-        match key {
-            VirtualKeyCode::P => {
-                for (player_pos, _) in (&positions, &players).join() {
-                    for (map_pos, map, _) in (&positions, &mut maps, &tags).join() {
-                        if position_inside_rect(player_pos.x, player_pos.y, 0, 0, map.size().0, map.size().1) {
-                            let (rel_x, rel_y) = ((player_pos.x - map_pos.x) as u32, (player_pos.y + 1 - map_pos.y) as u32);
-                            if rel_y < map.size().1 && map.is_set(rel_x, rel_y) {
-                                progress.block_progress += 1;
-                                if progress.block_progress > 5 {
-                                    // TODO remove money_per_block from here
-                                    progress.money_per_block = 5;
-                                    progress.block_progress = 0;
-                                    progress.mined += 1;
-                                    progress.money += progress.money_per_block as u64;
-                                    map.unset(rel_x, rel_y);
+system!(
+    MineSystem,
+    |positions: ReadStorage<'a, Point>,
+     players: ReadStorage<'a, Player>,
+     maps: WriteStorage<'a, CollisionMap>,
+     tags: ReadStorage<'a, MiningMapTag>,
+     channel: Read<'a, EventChannel<VirtualKeyCode>>,
+     res: WriteExpect<'a, MineRes>,
+     progress: Write<'a, Progress>| {
+        for key in channel.read(&mut res.reader) {
+            match key {
+                VirtualKeyCode::P => {
+                    for (player_pos, _) in (&positions, &players).join() {
+                        for (map_pos, map, _) in (&positions, &mut maps, &tags).join() {
+                            if position_inside_rect(
+                                player_pos.x,
+                                player_pos.y,
+                                0,
+                                0,
+                                map.size().0,
+                                map.size().1,
+                            ) {
+                                let (rel_x, rel_y) = (
+                                    (player_pos.x - map_pos.x) as u32,
+                                    (player_pos.y + 1 - map_pos.y) as u32,
+                                );
+                                if rel_y < map.size().1 && map.is_set(rel_x, rel_y) {
+                                    progress.block_progress += 1;
+                                    if progress.block_progress > 5 {
+                                        // TODO remove money_per_block from here
+                                        progress.money_per_block = 5;
+                                        progress.block_progress = 0;
+                                        progress.mined += 1;
+                                        progress.money += progress.money_per_block as u64;
+                                        map.unset(rel_x, rel_y);
+                                    }
                                 }
+                                //if map.is_inside(pos) {
+                                //    let (x, y) = map.relative_point(pos);
+                                //    if map.is_set(
+                                //}
                             }
-                            //if map.is_inside(pos) {
-                            //    let (x, y) = map.relative_point(pos);
-                            //    if map.is_set(
-                            //}
                         }
                     }
                 }
-            },
-            _ => {},
+                _ => {}
+            }
         }
     }
-});
+);
 
 #[derive(new)]
 pub struct ResetRes {
     pub reader: ReaderId<VirtualKeyCode>,
 }
 
-system!(ResetSystem, |positions: WriteStorage<'a, Point>, players: ReadStorage<'a, Player>,
-        maps: WriteStorage<'a, CollisionMap>, tags: ReadStorage<'a, MiningMapTag>, 
-        channel: Read<'a, EventChannel<VirtualKeyCode>>,
-        res: WriteExpect<'a, ResetRes>,
-        progress: Write<'a, Progress>| {
-    for key in channel.read(&mut res.reader) {
-        match key {
-            VirtualKeyCode::R => {
-                for (mut map, _) in (&mut maps, &tags).join() {
-                    init_collision_map(&mut map);
+system!(
+    ResetSystem,
+    |positions: WriteStorage<'a, Point>,
+     players: ReadStorage<'a, Player>,
+     maps: WriteStorage<'a, CollisionMap>,
+     tags: ReadStorage<'a, MiningMapTag>,
+     channel: Read<'a, EventChannel<VirtualKeyCode>>,
+     res: WriteExpect<'a, ResetRes>,
+     progress: Write<'a, Progress>| {
+        for key in channel.read(&mut res.reader) {
+            match key {
+                VirtualKeyCode::R => {
+                    for (mut map, _) in (&mut maps, &tags).join() {
+                        init_collision_map(&mut map);
+                    }
+                    for (mut p, _) in (&mut positions, &players).join() {
+                        p.x = WIDTH as i32 / 2;
+                        p.y = 10;
+                    }
+                    progress.block_progress = 0;
                 }
-                for (mut p, _) in (&mut positions, &players).join() {
-                    p.x = WIDTH as i32 / 2;
-                    p.y = 10;
-                }
-                progress.block_progress = 0;
-            },
-            _ => {},
+                _ => {}
+            }
         }
     }
-});
+);
 
-fn render<'a>(ctx: &mut BTerm, camera: &Camera, positions: ReadStorage<'a, Point>, multi_sprites: ReadStorage<'a, MultiSprite>, sprites: ReadStorage<'a, Sprite>, map: &CollisionResource,
-              progress: &Progress) {
+fn render<'a>(
+    ctx: &mut BTerm,
+    camera: &Camera,
+    positions: ReadStorage<'a, Point>,
+    multi_sprites: ReadStorage<'a, MultiSprite>,
+    sprites: ReadStorage<'a, Sprite>,
+    map: &CollisionResource,
+    progress: &Progress,
+) {
     ctx.cls();
     for i in 0..WIDTH {
         for j in 0..HEIGHT {
@@ -193,12 +254,31 @@ fn render<'a>(ctx: &mut BTerm, camera: &Camera, positions: ReadStorage<'a, Point
     if progress.block_progress == 0 {
         ctx.draw_bar_horizontal(0, SCREEN_HEIGHT - 5, SCREEN_WIDTH, 1, 1, WHITE, BLACK);
     } else {
-        ctx.draw_bar_horizontal(0, SCREEN_HEIGHT - 5, SCREEN_WIDTH, progress.block_progress, 5, WHITE, BLACK);
+        ctx.draw_bar_horizontal(
+            0,
+            SCREEN_HEIGHT - 5,
+            SCREEN_WIDTH,
+            progress.block_progress,
+            5,
+            WHITE,
+            BLACK,
+        );
     }
-    ctx.print(0, SCREEN_HEIGHT - 4, format!("Blocks Mined: {}, Mine Level: {}", progress.mined, progress.current_mine));
+    ctx.print(
+        0,
+        SCREEN_HEIGHT - 4,
+        format!(
+            "Blocks Mined: {}, Mine Level: {}",
+            progress.mined, progress.current_mine
+        ),
+    );
     ctx.print(0, SCREEN_HEIGHT - 3, format!("Money: {}$", progress.money));
     ctx.print(0, SCREEN_HEIGHT - 2, format!("Mine Material: Cobblestone, Tool: Standard Pickaxe, Money Per Block: {}$, Respawns In: 0s", progress.money_per_block));
-    ctx.print(0, SCREEN_HEIGHT - 1, format!("Remaining Before Next Unlock: 0$"));
+    ctx.print(
+        0,
+        SCREEN_HEIGHT - 1,
+        format!("Remaining Before Next Unlock: 0$"),
+    );
 }
 
 struct State {
@@ -206,15 +286,25 @@ struct State {
     pub dispatcher: Dispatcher<'static, 'static>,
 }
 impl GameState for State {
-    fn tick(&mut self, ctx : &mut BTerm) {
+    fn tick(&mut self, ctx: &mut BTerm) {
         // Input
         let mut input = INPUT.lock();
         for key in input.key_pressed_set().iter() {
-            self.world.fetch_mut::<EventChannel<VirtualKeyCode>>().single_write(*key);
+            self.world
+                .fetch_mut::<EventChannel<VirtualKeyCode>>()
+                .single_write(*key);
         }
         //self.world.insert(ctx.key.clone());
         self.dispatcher.dispatch(&mut self.world);
-        render(ctx, &self.world.read_resource(), self.world.read_storage(), self.world.read_storage(), self.world.read_storage(), &self.world.read_resource(), &self.world.read_resource());
+        render(
+            ctx,
+            &self.world.read_resource(),
+            self.world.read_storage(),
+            self.world.read_storage(),
+            self.world.read_storage(),
+            &self.world.read_resource(),
+            &self.world.read_resource(),
+        );
         self.world.maintain();
         std::thread::sleep(std::time::Duration::from_millis(8));
     }
@@ -238,13 +328,13 @@ fn main() -> BError {
         .with(PlayerMovementSystem, "player_movement", &[])
         .with(ResetSystem, "reset", &[])
         .with(MineSystem, "mine", &[]);
-    let (mut world, mut dispatcher, mut context) = 
+    let (mut world, mut dispatcher, mut context) =
         mini_init(SCREEN_WIDTH, SCREEN_HEIGHT, "World Digger", builder);
 
     world.register::<MultiSprite>();
     world.register::<Sprite>();
     world.register::<Comp<StatSet<Stats>>>();
-    
+
     // overwrite the default channel
     let mut channel = EventChannel::<VirtualKeyCode>::new();
     let reader = channel.register_reader();
@@ -255,17 +345,36 @@ fn main() -> BError {
     world.insert(MineRes::new(reader2));
     world.insert(ResetRes::new(reader3));
 
-    world.insert(CollisionResource::new(CollisionMap::new(WIDTH, HEIGHT), Point::new(0, 0)));
-    world.insert(Camera::new(Point::new(0,0), Point::new(160, 60)));
+    world.insert(CollisionResource::new(
+        CollisionMap::new(WIDTH, HEIGHT),
+        Point::new(0, 0),
+    ));
+    world.insert(Camera::new(Point::new(0, 0), Point::new(160, 60)));
     let stat_defs = StatDefinitions::from(vec![
-        StatDefinition::new(Stats::Health, String::from("health"), String::from("HP"), 100.0),
-        StatDefinition::new(Stats::Defense, String::from("defense"), String::from("Defense"), 0.0),
-        StatDefinition::new(Stats::Attack, String::from("attack"), String::from("Attack"), 10.0),
+        StatDefinition::new(
+            Stats::Health,
+            String::from("health"),
+            String::from("HP"),
+            100.0,
+        ),
+        StatDefinition::new(
+            Stats::Defense,
+            String::from("defense"),
+            String::from("Defense"),
+            0.0,
+        ),
+        StatDefinition::new(
+            Stats::Attack,
+            String::from("attack"),
+            String::from("Attack"),
+            10.0,
+        ),
         StatDefinition::new(Stats::Mana, String::from("mana"), String::from("MP"), 100.0),
     ]);
 
     // player
-    world.create_entity()
+    world
+        .create_entity()
         .with(Point::new(WIDTH / 2, 10))
         //.with(MultiSprite::new(MultiTileSprite::from_string("@@", 1, 2)))
         .with(Comp(stat_defs.to_statset()))
@@ -300,7 +409,8 @@ fn main() -> BError {
 
     let mut coll = CollisionMap::new(WIDTH, HEIGHT);
     init_collision_map(&mut coll);
-    world.create_entity()
+    world
+        .create_entity()
         .with(Point::new(0, 0))
         .with(coll)
         .with(MiningMapTag)
@@ -317,11 +427,7 @@ fn main() -> BError {
     //        .build();
     //}
 
-    let gs = State {
-        world,
-        dispatcher,
-    };
+    let gs = State { world, dispatcher };
 
     main_loop(context, gs)
 }
-
